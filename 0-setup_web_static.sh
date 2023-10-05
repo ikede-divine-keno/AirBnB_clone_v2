@@ -37,7 +37,7 @@ myhtml="<!DOCTYPE html>
 "
 
 sudo touch /data/web_static/releases/test/index.html
-sudo echo "$myhtml" > /data/web_static/releases/test/index.html
+echo "$myhtml" > /data/web_static/releases/test/index.html
 
 if [ -f /data/web_static/current ]; then
     sudo rm -rf /data/web_static/current
