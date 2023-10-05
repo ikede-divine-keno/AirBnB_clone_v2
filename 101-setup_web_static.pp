@@ -1,102 +1,20 @@
-# Configures a web server for deployment of web_static.
+#!/usr/bin/env bash
+# using puppet to configure ssh
 
-# Nginx configuration file
-$nginx_conf = "server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    add_header X-Served-By ${hostname};
-    root   /var/www/html;
-    index  index.html index.htm;
+$myhtml="<!DOCTYPE html>\n<html lang='en'>\n\t<head>\n\t\t<title>My HTML Page</title>\n\t</head>\n\t<body>\n\t\t<p>This is a HTML Page</p>\n\t</body>\n</html>"
 
-    location /hbnb_static {
-        alias /data/web_static/current;
-        index index.html index.htm;
-    }
-
-    location /redirect_me {
-        return 301 http://cuberule.com/;
-    }
-
-    error_page 404 /404.html;
-    location /404 {
-      root /var/www/html;
-      internal;
-    }
-}"
-
-$myhtml="<!DOCTYPE html>
-<html lang='en'>
-    <head>
-        <title>My HTML Page</title>
-    </head>
-    <body>
-        <p>This is a HTML Page</p>
-    </body>
-</html>
-"
-
-package { 'nginx':
-  ensure   => 'present',
-  provider => 'apt'
-} ->
-
-file { '/data':
-  ensure  => 'directory'
-} ->
-
-file { '/data/web_static':
-  ensure => 'directory'
-} ->
-
-file { '/data/web_static/releases':
-  ensure => 'directory'
-} ->
-
-file { '/data/web_static/releases/test':
-  ensure => 'directory'
-} ->
-
-file { '/data/web_static/shared':
-  ensure => 'directory'
-} ->
-
-file { '/data/web_static/releases/test/index.html':
-  ensure  => 'present',
-  content => $myhtml
-} ->
-
-file { '/data/web_static/current':
-  ensure => 'link',
-  target => '/data/web_static/releases/test'
-} ->
-
-exec { 'chown -R ubuntu:ubuntu /data/':
-  path => '/usr/bin/:/usr/local/bin/:/bin/'
-}
-
-file { '/var/www':
-  ensure => 'directory'
-} ->
-
-file { '/var/www/html':
-  ensure => 'directory'
-} ->
-
-file { '/var/www/html/index.html':
-  ensure  => 'present',
-  content => $myhtml
-} ->
-
-file { '/var/www/html/404.html':
-  ensure  => 'present',
-  content => "Ceci n'est pas une page\n"
-} ->
-
-file { '/etc/nginx/sites-available/default':
-  ensure  => 'present',
-  content => $nginx_conf
-} ->
-
-exec { 'nginx restart':
-  path => '/etc/init.d/'
+exec { "execute":
+    command  => 'sudo mkdir -p /data/web_static/releases/test/ && \
+    sudo mkdir -p /data/web_static/shared/ && \
+    sudo touch /data/web_static/releases/test/index.html && \
+    sudo echo "${myhtml}" > /data/web_static/releases/test/index.html && \
+    if [ -f /data/web_static/current ]; then sudo rm -rf /data/web_static/current; fi && \
+    sudo ln -s /data/web_static/releases/test/ /data/web_static/current && \
+    sudo chown -R ubuntu:ubuntu /data/ && \
+    sudo sed -i "s|server_name _;|server_name _;\n\tlocation /hbnb_static {\n\t\talias /data/web_static/current;\n\t\ttry_files \$uri \$uri/ =404;\n\t}|" /etc/nginx/sites-enabled/default && \
+    sudo nginx -t && \
+    sudo service nginx restart;',
+    creates  => '/data/web_static/current',
+    require  => Package['nginx'],
+    provider => 'shell',
 }
